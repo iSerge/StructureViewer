@@ -1,0 +1,1 @@
+App calculating structure factor. May be useful for students in Solid state physics.

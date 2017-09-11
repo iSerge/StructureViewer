@@ -1,0 +1,57 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'application'
+
+sourceCompatibility = 1.8
+version = '0.1'
+
+mainClassName = 'org.xraycrystal.StructureViewer'
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Simulation of Bragg X-ray diffraction in crystalline structures',
+                   'Implementation-Version': version,
+                   'Main-Class': 'org.xraycrystal.StructureViewer'
+    }
+}
+
+//create a single Jar with all dependencies
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Simulation of Bragg X-ray diffraction in crystalline structures',
+                   'Implementation-Version': version,
+                   'Main-Class': 'org.xraycrystal.StructureViewer'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } } {
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
+    }
+    with jar
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'com.intellij:annotations:12.0'
+
+    compile 'org.jogamp.gluegen:gluegen-rt-main:2.3.2'
+    compile 'org.jogamp.jogl:jogl-all-main:2.3.2'
+    compile 'org.jogamp.jocl:jocl-main:2.3.2'
+    compile 'net.sourceforge.jmol:jmol:13.0.14'
+
+    testCompile 'org.testng:testng:6.10'
+}
+
+test {
+   useTestNG()
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.1'
+}
+
