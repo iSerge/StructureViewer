@@ -10,6 +10,8 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
 public class StructureGLListener implements GLEventListener {
+    public enum ShowAtoms {ALL, UNEQUIVALENT}
+
     private static final int ATOM_DESCR_LEN = 7;
     private int programId;
     private int vertId;
@@ -215,7 +217,7 @@ public class StructureGLListener implements GLEventListener {
         atomsLoaded = true;
     }
 
-    public void initShader (GLAutoDrawable d)
+    private void initShader (GLAutoDrawable d)
     {
         GL4 gl = d.getGL().getGL4(); // get the OpenGL 3 graphics context
 
@@ -347,36 +349,114 @@ public class StructureGLListener implements GLEventListener {
         transformMatrix[11] = 0;
     }
 
-    public void setAtoms(AtomSetCollection atomsCollection) {
+    public void setAtoms(AtomSetCollection atomsCollection, ShowAtoms showAtoms) {
         atomCount = atomsCollection.getAtomCount();
         atoms = new float[atomCount*ATOM_DESCR_LEN];
 
         SymmetryInterface symmetry = atomsCollection.getSymmetry();
 
+        int realCount = 0;
+
         for(int i = 0; i < atomCount; ++i){
             if(null == symmetry || !symmetry.haveUnitCell()){
                 Atom atom = atomsCollection.getAtom(i);
-                atoms[i * ATOM_DESCR_LEN] = atom.x;
-                atoms[i * ATOM_DESCR_LEN + 1] = atom.y;
-                atoms[i * ATOM_DESCR_LEN + 2] = atom.z;
+                atoms[realCount * ATOM_DESCR_LEN] = atom.x;
+                atoms[realCount * ATOM_DESCR_LEN + 1] = atom.y;
+                atoms[realCount * ATOM_DESCR_LEN + 2] = atom.z;
             } else {
                 Point3f atom = new Point3f(atomsCollection.getAtom(i));
                 symmetry.toCartesian(atom, true);
 
-                atoms[i * ATOM_DESCR_LEN] = atom.x;
-                atoms[i * ATOM_DESCR_LEN + 1] = atom.y;
-                atoms[i * ATOM_DESCR_LEN + 2] = atom.z;
+                atoms[realCount * ATOM_DESCR_LEN] = atom.x;
+                atoms[realCount * ATOM_DESCR_LEN + 1] = atom.y;
+                atoms[realCount * ATOM_DESCR_LEN + 2] = atom.z;
             }
 
             String element = atomsCollection.getAtom(i).getElementSymbol();
 
             float[] color = GlUtils.colorFromElementName(element);
 
-            atoms[i*ATOM_DESCR_LEN + 3] = color[0];
-            atoms[i*ATOM_DESCR_LEN + 4] = color[1];
-            atoms[i*ATOM_DESCR_LEN + 5] = color[2];
+            atoms[realCount*ATOM_DESCR_LEN + 3] = color[0];
+            atoms[realCount*ATOM_DESCR_LEN + 4] = color[1];
+            atoms[realCount*ATOM_DESCR_LEN + 5] = color[2];
 
-            atoms[i*ATOM_DESCR_LEN + 6] = GlUtils.radiusFromElementName(element);
+            atoms[realCount*ATOM_DESCR_LEN + 6] = GlUtils.radiusFromElementName(element);
+            if(ShowAtoms.ALL == showAtoms){
+                ++realCount;
+            } else if (null != symmetry && symmetry.haveUnitCell()) {
+                Point3f[] ucVectors = symmetry.getUnitCellVectors();
+                boolean equivalent_atom = false;
+                Point3f a = new Point3f(atoms[realCount*ATOM_DESCR_LEN], atoms[realCount*ATOM_DESCR_LEN + 1], atoms[realCount*ATOM_DESCR_LEN + 2]);
+                for(int j = 0; j < realCount; ++j){
+                    Point3f atom = new Point3f(atoms[j*ATOM_DESCR_LEN], atoms[j*ATOM_DESCR_LEN + 1], atoms[j*ATOM_DESCR_LEN + 2]);
+
+                    Point3f translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[1]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[2]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[3]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[1]);
+                    translatedAtom.add(ucVectors[3]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[2]);
+                    translatedAtom.add(ucVectors[3]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[1]);
+                    translatedAtom.add(ucVectors[2]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                    translatedAtom = new Point3f(atom);
+                    translatedAtom.add(ucVectors[1]);
+                    translatedAtom.add(ucVectors[2]);
+                    translatedAtom.add(ucVectors[3]);
+                    if(a.epsilonEquals(translatedAtom, 1e-5f)){
+                        equivalent_atom = true;
+                        break;
+                    }
+
+                }
+
+                if(!equivalent_atom){
+                    ++realCount;
+                }
+            }
+        }
+
+        if(ShowAtoms.UNEQUIVALENT == showAtoms){
+            float[] realAtoms = new float[realCount*ATOM_DESCR_LEN];
+            System.arraycopy(atoms, 0, realAtoms, 0, realCount*ATOM_DESCR_LEN);
+            atoms = realAtoms;
+            atomCount = realCount;
         }
 
         atomsLoaded = false;

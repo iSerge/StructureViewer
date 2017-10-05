@@ -8,6 +8,8 @@ import org.jmol.adapter.smarter.AtomSetCollectionReader;
 import org.jmol.adapter.smarter.SmarterJmolAdapter;
 import org.jmol.api.JmolAdapter;
 
+import org.xraycrystal.StructureGLListener.ShowAtoms;
+
 import javax.swing.*;
 import javax.vecmath.Point3f;
 import java.awt.*;
@@ -65,7 +67,7 @@ public class StructureViewer {
         JLabel cellsNumberLbl = new JLabel("1");
         cellsNumberPanel.add(cellsNumberLbl);
 
-        JSlider cellsNumberSlider = new JSlider(1, 10);
+        JSlider cellsNumberSlider = new JSlider(0, 10);
         cellsNumberSlider.setValue(1);
         cellsNumberSlider.setMajorTickSpacing(5);
         cellsNumberSlider.setMinorTickSpacing(1);
@@ -118,7 +120,7 @@ public class StructureViewer {
             if(null != file && !file.isEmpty()){
                 AtomSetCollection atoms = loadFile(file, cellsNumber);
 
-                structureRenderer.setAtoms(atoms);
+                structureRenderer.setAtoms(atoms, cellsNumberSlider.getValue() == 0 ? ShowAtoms.UNEQUIVALENT : ShowAtoms.ALL);
 
                 structureView.display();
             }
@@ -136,7 +138,7 @@ public class StructureViewer {
                 file = fc.getSelectedFile().getAbsolutePath();
                 AtomSetCollection atoms = loadFile(file, cellsNumberSlider.getValue());
 
-                structureRenderer.setAtoms(atoms);
+                structureRenderer.setAtoms(atoms, cellsNumberSlider.getValue() == 0 ? ShowAtoms.UNEQUIVALENT : ShowAtoms.ALL);
 
                 structureView.display();
             }
@@ -198,7 +200,11 @@ public class StructureViewer {
 
             Map<String, Object> htParams = new HashMap<>();
             htParams.put("spaceGroupIndex", -1);
-            htParams.put("lattice", new Point3f(cellsNumber, cellsNumber, cellsNumber));
+            if(0 < cellsNumber) {
+                htParams.put("lattice", new Point3f(cellsNumber, cellsNumber, cellsNumber));
+            } else {
+                htParams.put("lattice", new Point3f(1, 1, 1));
+            }
             htParams.put("packed", true);
 
             AtomSetCollectionReader fileReader = (AtomSetCollectionReader) adapter.getAtomSetCollectionReader(name, null, reader, htParams);
